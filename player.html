@@ -4,8 +4,6 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>video player</title>
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest">
-    </script>
     <style>
         *,
         *::before,
@@ -59,30 +57,12 @@
             justify-content: center;
         }
 
-        .video_container video {
+        .video_container iframe {
             width: 100%;
             height: 100%;
+            border: 0;
             display: block;
             background: #0d0d0d;
-            outline: none;
-            border: none;
-        }
-
-        .video_container video::-webkit-media-controls-panel {
-            background: rgba(0, 0, 0, 0.72);
-            border-radius: 12px;
-        }
-
-        .video_container video::-webkit-media-controls-play-button {
-            filter: drop-shadow(0 0 4px rgba(0, 0, 0, 0.6));
-        }
-
-        .video_container video::-webkit-media-controls-timeline {
-            border-radius: 4px;
-        }
-
-        .video_container video::-webkit-media-controls-volume-slider {
-            border-radius: 4px;
         }
 
         .video_status {
@@ -186,17 +166,14 @@
                 padding: 18px 16px 18px;
                 border-radius: 18px;
             }
-
             .player_title {
                 font-size: 13px;
                 padding-bottom: 14px;
                 margin-bottom: 16px;
             }
-
             .video_container {
                 border-radius: 12px;
             }
-
             .video_status {
                 font-size: 12px;
                 padding-top: 14px;
@@ -204,7 +181,6 @@
                 flex-direction: column;
                 gap: 6px;
             }
-
             .video_status .meta {
                 border-left: none;
                 padding-left: 0;
@@ -216,13 +192,11 @@
                 padding: 12px 10px 14px;
                 border-radius: 14px;
             }
-
             .player_title {
                 font-size: 12px;
                 padding-bottom: 10px;
                 margin-bottom: 12px;
             }
-
             .video_container {
                 border-radius: 10px;
             }
@@ -235,305 +209,43 @@
         <div class="player_title">video player</div>
 
         <div class="video_container">
-            <video id="video" controls playsinline preload="metadata"></video>
+            <iframe
+                src="https://anym3u8player.com/tv/p.php?url=https%3A%2F%2Fs1.cccdn.net%2F1e7a1bbb64b6f8c0ccd83f0dd310eb33%3A1782154591%2Fpublic_files%2F%2C2026-06%2Fbackrooms_2026_web-dl_english.m4a%2C2026-06%2Fbackrooms_2026_web-dl_spanish-latin-america.m4a%2C2026-06%2Fbackrooms_2026_web-dl_v3_src_360p.mp4%2C2026-06%2Fbackrooms_2026_web-dl_v3_src_720p.mp4%2C2026-06%2Fbackrooms_2026_web-dl_v3_src_1080p.mp4%2C.urlset%2Findex-f5-v1-f1-a1.m3u8"
+                allowfullscreen
+                allow="autoplay"
+                webkitAllowFullScreen
+                mozallowfullscreen
+            ></iframe>
         </div>
 
         <div class="video_status">
-            <span class="dot" id="status_dot"></span>
-            <span class="status_text" id="status_text">initializing</span>
+            <span class="dot active" id="status_dot"></span>
+            <span class="status_text" id="status_text">▶ <span>playing</span></span>
             <span class="meta" id="meta_info">
-                <span class="badge" id="badge_status">hls</span>
+                <span class="badge ok" id="badge_status">live</span>
                 <span id="duration_display">--:--</span>
             </span>
         </div>
     </div>
 
     <script>
-        (function() {
-            const video = document.getElementById('video');
-            const status_dot = document.getElementById('status_dot');
-            const status_text = document.getElementById('status_text');
-            const badge_status = document.getElementById('badge_status');
-            const duration_display = document.getElementById('duration_display');
+        const iframe = document.querySelector('iframe');
+        const dot = document.getElementById('status_dot');
+        const statusText = document.getElementById('status_text');
 
-            const STREAM_URL =
-                'https://s1.cccdn.net/1e7a1bbb64b6f8c0ccd83f0dd310eb33:1782154591/public_files/,2026-06/backrooms_2026_web-dl_english.m4a,2026-06/backrooms_2026_web-dl_spanish-latin-america.m4a,2026-06/backrooms_2026_web-dl_v3_src_360p.mp4,2026-06/backrooms_2026_web-dl_v3_src_720p.mp4,2026-06/backrooms_2026_web-dl_v3_src_1080p.mp4,.urlset/index-f5-v1-f1-a1.m3u8';
-
-            const CUSTOM_HEADERS = {
-                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/149.0.0.0 Safari/537.36',
-                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
-                'Accept-Language': 'en-GB,en;q=0.8',
-                'sec-ch-ua': '"Brave";v="149", "Chromium";v="149", "Not)A;Brand";v="24"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-platform': '"Windows"',
-                'sec-fetch-dest': 'document',
-                'sec-fetch-mode': 'navigate',
-                'sec-fetch-site': 'none',
-                'sec-fetch-user': '?1',
-                'sec-gpc': '1',
-                'upgrade-insecure-requests': '1',
-            };
-
-            function set_status(state, msg, badge_type) {
-                status_dot.className = 'dot';
-                if (state === 'active') {
-                    status_dot.classList.add('active');
-                    status_text.innerHTML = msg;
-                } else if (state === 'error') {
-                    status_dot.classList.add('error');
-                    status_text.innerHTML = msg;
-                } else if (state === 'loading') {
-                    status_dot.classList.add('loading');
-                    status_text.innerHTML = msg;
-                } else {
-                    status_text.innerHTML = msg;
-                }
-
-                if (badge_type) {
-                    badge_status.textContent = badge_type;
-                    badge_status.className = 'badge';
-                    if (badge_type === 'error') badge_status.classList.add('err');
-                    else if (badge_type === 'warn') badge_status.classList.add('warn');
-                    else if (badge_type === 'ok') badge_status.classList.add('ok');
-                }
+        iframe.addEventListener('load', function() {
+            dot.className = 'dot active';
+            statusText.innerHTML = '▶ <span>playing</span>';
+        });
+        
+        let loaded = false;
+        iframe.addEventListener('load', function() { loaded = true; });
+        setTimeout(function() {
+            if (!loaded) {
+                dot.className = 'dot error';
+                statusText.innerHTML = '✕ <span>failed to load</span>';
             }
-
-            function format_time(seconds) {
-                if (!seconds || isNaN(seconds) || !isFinite(seconds)) return '--:--';
-                const m = Math.floor(seconds / 60);
-                const s = Math.floor(seconds % 60);
-                return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
-            }
-
-            function update_meta() {
-                const dur = video.duration;
-                if (dur && isFinite(dur) && dur > 0) {
-                    duration_display.textContent = format_time(dur);
-                }
-            }
-
-            let retry_count = 0;
-            const MAX_RETRIES = 3;
-
-            function attempt_play() {
-                video.play().catch(function(e) {
-                    if (retry_count < MAX_RETRIES) {
-                        retry_count++;
-                        set_status('loading', 'retry ' + retry_count, 'warn');
-                        setTimeout(attempt_play, 1200);
-                    } else {
-                        set_status('active', 'paused click to play', 'ok');
-                    }
-                });
-            }
-
-            if (Hls.isSupported()) {
-                const hls = new Hls({
-                    enableWorker: true,
-                    lowLatencyMode: true,
-                    backbufferLength: 30,
-                    maxBufferLength: 30,
-                    xhrSetup: function(xhr, url) {
-                        for (const [key, value] of Object.entries(CUSTOM_HEADERS)) {
-                            try {
-                                xhr.setRequestHeader(key, value);
-                            } catch (_) {}
-                        }
-                        try {
-                            xhr.setRequestHeader('Referer', 'https://tik.1x2.space/playlist/');
-                        } catch (_) {}
-                    },
-                    fetchSetup: function(context, init) {
-                        if (!init.headers) init.headers = {};
-                        for (const [key, value] of Object.entries(CUSTOM_HEADERS)) {
-                            init.headers[key] = value;
-                        }
-                        init.headers['Referer'] = 'https://tik.1x2.space/playlist/';
-                        return init;
-                    }
-                });
-
-                hls.loadSource(STREAM_URL);
-                hls.attachMedia(video);
-
-                let manifest_loaded = false;
-
-                hls.on(Hls.Events.MANIFEST_PARSED, function() {
-                    manifest_loaded = true;
-                    set_status('active', 'ready', 'ok');
-                    badge_status.textContent = 'hls ok';
-                    duration_display.textContent = format_time(video.duration);
-                    retry_count = 0;
-                    attempt_play();
-                });
-
-                hls.on(Hls.Events.LEVEL_LOADED, function() {
-                    if (!manifest_loaded) {
-                        set_status('loading', 'loading manifest', 'warn');
-                    }
-                });
-
-                hls.on(Hls.Events.FRAG_LOADED, function() {
-                    if (video.paused && video.currentTime === 0) {
-                        set_status('active', 'ready', 'ok');
-                    }
-                });
-
-                hls.on(Hls.Events.ERROR, function(event, data) {
-                    if (data.fatal) {
-                        set_status('error', 'stream error', 'error');
-                        badge_status.textContent = 'error';
-                        if (data.type === 'networkError' && retry_count < MAX_RETRIES) {
-                            retry_count++;
-                            set_status('loading', 'reconnecting (' + retry_count + '/' + MAX_RETRIES + ')', 'warn');
-                            setTimeout(function() {
-                                hls.loadSource(STREAM_URL);
-                            }, 2000);
-                        } else if (data.type === 'mediaError') {
-                            hls.recoverMediaError();
-                        }
-                    } else {
-                        set_status('loading', 'buffering', 'warn');
-                        badge_status.textContent = 'buffering';
-                    }
-                });
-
-                hls.on(Hls.Events.BUFFER_CREATED, function() {
-                    set_status('loading', 'loading stream', 'warn');
-                });
-
-                hls.on(Hls.Events.BUFFER_APPENDED, function() {
-                    if (video.paused && video.currentTime === 0) {
-                        set_status('active', 'ready', 'ok');
-                    }
-                });
-
-                video.addEventListener('play', function() {
-                    set_status('active', 'playing', 'ok');
-                    badge_status.textContent = 'playing';
-                });
-
-                video.addEventListener('pause', function() {
-                    if (video.currentTime > 0 && !video.ended) {
-                        set_status('active', 'paused', 'ok');
-                        badge_status.textContent = 'paused';
-                    }
-                });
-
-                video.addEventListener('ended', function() {
-                    set_status('active', 'ended', 'ok');
-                    badge_status.textContent = 'ended';
-                });
-
-                video.addEventListener('waiting', function() {
-                    set_status('loading', 'buffering', 'warn');
-                    badge_status.textContent = 'buffering';
-                });
-
-                video.addEventListener('canplay', function() {
-                    if (!video.paused) {
-                        set_status('active', 'playing', 'ok');
-                    } else if (video.currentTime === 0) {
-                        set_status('active', 'ready', 'ok');
-                    }
-                });
-
-                video.addEventListener('loadedmetadata', function() {
-                    update_meta();
-                    if (!manifest_loaded) {
-                        set_status('loading', 'metadata loaded', 'warn');
-                    }
-                });
-
-                video.addEventListener('durationchange', update_meta);
-                video.addEventListener('timeupdate', function() {
-                    if (video.duration && isFinite(video.duration) && video.duration > 0) {
-                        duration_display.textContent = format_time(video.duration);
-                    }
-                });
-
-                window.__hls = hls;
-
-                set_status('loading', 'connecting', 'warn');
-                badge_status.textContent = 'hls';
-
-            } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-                video.src = STREAM_URL;
-                badge_status.textContent = 'native';
-
-                video.addEventListener('loadedmetadata', function() {
-                    set_status('active', 'ready', 'ok');
-                    update_meta();
-                    badge_status.textContent = 'native ok';
-                    attempt_play();
-                });
-
-                video.addEventListener('play', function() {
-                    set_status('active', 'playing', 'ok');
-                    badge_status.textContent = 'playing';
-                });
-
-                video.addEventListener('pause', function() {
-                    if (video.currentTime > 0 && !video.ended) {
-                        set_status('active', 'paused', 'ok');
-                        badge_status.textContent = 'paused';
-                    }
-                });
-
-                video.addEventListener('ended', function() {
-                    set_status('active', 'ended', 'ok');
-                    badge_status.textContent = 'ended';
-                });
-
-                video.addEventListener('waiting', function() {
-                    set_status('loading', 'buffering', 'warn');
-                    badge_status.textContent = 'buffering';
-                });
-
-                video.addEventListener('error', function() {
-                    set_status('error', 'native error', 'error');
-                    badge_status.textContent = 'error';
-                });
-
-                set_status('loading', 'using native hls', 'warn');
-
-            } else {
-                set_status('error', 'browser not supported', 'error');
-                badge_status.textContent = 'unsupported';
-                video.style.display = 'none';
-                const container = document.querySelector('.video_container');
-                const fallback_msg = document.createElement('div');
-                fallback_msg.style.cssText =
-                    'color:#888;font-size:14px;text-align:center;padding:30px 20px;';
-                fallback_msg.textContent = 'Your browser does not support HLS playback.';
-                container.appendChild(fallback_msg);
-            }
-
-            const container = document.querySelector('.video_container');
-            container.addEventListener('click', function(e) {
-                if (e.target === video) return;
-                if (video.paused) {
-                    retry_count = 0;
-                    video.play().catch(function() {});
-                } else {
-                    video.pause();
-                }
-            });
-
-            document.addEventListener('keydown', function(e) {
-                if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
-                if (e.code === 'Space') {
-                    e.preventDefault();
-                    if (video.paused) {
-                        retry_count = 0;
-                        video.play().catch(function() {});
-                    } else {
-                        video.pause();
-                    }
-                }
-            });
-
-        })();
+        }, 10000);
     </script>
 
 </body>
